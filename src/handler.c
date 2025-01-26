@@ -8,7 +8,7 @@ uint8_t *handle_response(request *req, uint64_t *response_length);
 void init_request(request *req);
 
 // Thinking of adding the connecting IP to the arguments
-void handle_connection(int32_t connection) {
+void handle_connection(int32_t connection, char *web_root) {
   char buffer[REQUEST_LENGTH];
   uint32_t bytes;
   bool success;
@@ -22,7 +22,7 @@ void handle_connection(int32_t connection) {
 
     request req;
     init_request(&req);
-    strcpy(req.web_root, WEB_ROOT);
+    strcpy(req.web_root, web_root);
 
     printf("%s\n", buffer);
 

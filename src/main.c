@@ -1,12 +1,17 @@
-#include "headers.h"
 #include "handler.c"
+#include "headers.h"
 
 int32_t open_listen_socket();
 
 const int32_t BACKLOG = 5;
 const char *PORT = "80";
 
-int32_t main() {
+int32_t main(int32_t argc, char *argv[]) {
+  if (argc == 1) {
+    fprintf(stderr, "A web root must be specified\n");
+    return 1;
+  }
+
   printf("Starting server on port %s\n", PORT);
 
   // Open a socket to listen for connections
@@ -19,6 +24,8 @@ int32_t main() {
   struct sockaddr_storage their_addr;
   socklen_t addr_size = sizeof their_addr;
 
+  char *web_root = argv[1];
+
   // Connection loop
   while (1) {
     // Accept the connection
@@ -26,10 +33,10 @@ int32_t main() {
 
     // Enter if child process
     if (!fork()) {
-       // Not needed in child process
-      close(s); 
+      // Not needed in child process
+      close(s);
 
-      handle_connection(connection);
+      handle_connection(connection, web_root);
 
       // Clean up
       close(connection);

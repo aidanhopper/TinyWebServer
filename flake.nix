@@ -27,10 +27,10 @@
           ] ++ (if system == "aarch64-darwin" then [ ] else [ gdb ]);
         };
 
-        packages.default = pkgs.stdenv.mkDerivation {
+        packages.server = pkgs.stdenv.mkDerivation {
           name = "server";
           src = ./src;
-          buildInputs = with pkgs; [ ];
+          #buildInputs = with pkgs; [ ];
           buildPhase = ''
             clang main.c -o server -Wall -Werror
           '';
