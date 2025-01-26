@@ -3,6 +3,14 @@
   padding: 0px;
 }
 
+body {
+  background: white;
+}
+
+.image {
+  width: 100px;
+}
+
 main {
   padding: 5px;
   margin-left: auto;

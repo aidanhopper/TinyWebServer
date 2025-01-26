@@ -1,7 +1,8 @@
 #include "headers.h"
+#include <stdint.h>
 
-char *grab_file(char *path) {
-  FILE *f = fopen(path, "r");
+uint8_t *grab_file(char *path, uint64_t *length) {
+  FILE *f = fopen(path, "rb");
 
   if (f == NULL) {
     fprintf(stderr, "File was NULL\n");
@@ -9,10 +10,10 @@ char *grab_file(char *path) {
   }
 
   fseek(f, 0, SEEK_END);
-  uint32_t length = ftell(f);
+  *length = ftell(f);
   rewind(f);
 
-  char *buffer = calloc(length + 1, sizeof(char));
+  uint8_t *buffer = calloc(*length, sizeof(uint8_t));
 
   if (buffer == NULL) {
     fprintf(stderr, "Buffer was NULL\n");
@@ -20,23 +21,27 @@ char *grab_file(char *path) {
     return NULL;
   }
 
-  fread(buffer, sizeof(char), length, f);
+  fread(buffer, sizeof(uint8_t), *length, f);
+  /*if (bytes_read != *length) {*/
+  /*  free(buffer);*/
+  /*  fclose(f);*/
+  /*  return NULL;*/
+  /*}*/
 
-  buffer[length] = '\0';
-
+  fclose(f);
   return buffer;
 }
 
 // Super strcat that will resize a dynamically allocated destination when needed
-void add(char **dst, uint32_t *capacity, char *src) {
-  uint32_t dst_len = strlen(*dst);
-  uint32_t src_len = strlen(src);
-
-  if (dst_len + src_len > *capacity) {
-    *dst = realloc(*dst, (dst_len + src_len) * 2);
-    *capacity = (dst_len + src_len) * 2;
+void add(uint8_t **dst, uint64_t *capacity, uint64_t *dst_len, uint8_t *src,
+         uint64_t src_len) {
+  if (*dst_len + src_len + 1 > *capacity) {
+    uint64_t new_capacity = *dst_len + src_len + 1;
+    *dst = realloc(*dst, new_capacity * 2);
+    *capacity = new_capacity * 2;
   }
 
-  strcat(*dst, src);
-  memset(*dst + dst_len + src_len, '\0', *capacity - dst_len - src_len);
+  memcpy(*dst + *dst_len, src, src_len);
+
+  *dst_len += src_len;
 }

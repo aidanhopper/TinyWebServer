@@ -55,7 +55,6 @@ int32_t main() {
   while (1) {
     memset(buffer, '\0', 1024);
     recv(connection, buffer, 1024, 0);
-    printf("RECEIVED: %s", buffer);
 
     if (strcmp(buffer, "exit") == 0) {
       break;

@@ -4,7 +4,7 @@
 
 bool parse(request *req, char buffer[REQUEST_LENGTH]);
 bool parse_start_line(request *req, char buffer[REQUEST_LENGTH]);
-char *handle_response(request *req);
+uint8_t *handle_response(request *req, uint64_t *response_length);
 void init_request(request *req);
 
 // Thinking of adding the connecting IP to the arguments
@@ -30,7 +30,8 @@ void handle_connection(int32_t connection) {
     if (!success)
       return;
 
-    char *response = handle_response(&req);
+    uint64_t response_length = 0;
+    uint8_t *response = handle_response(&req, &response_length);
 
     /*memset(msg, '\0', 1024);*/
     /*char content[] = "<h1>THIS IS A HEADER</h1> \*/
@@ -42,17 +43,18 @@ void handle_connection(int32_t connection) {
     /*strcat(msg, content);*/
 
     if (response != NULL) {
-      send(connection, response, strlen(response), 0);
+      printf("%s\n", response);
+      send(connection, response, response_length, 0);
       free(response);
     }
   }
 }
 
-char *handle_response(request *req) {
-  char *response = NULL;
+uint8_t *handle_response(request *req, uint64_t *response_length) {
+  uint8_t *response = NULL;
 
   if (strcmp(req->method, "GET") == 0) {
-    response = get(req);
+    response = get(req, response_length);
   }
 
   else if (strcmp(req->method, "POST") == 0) {
@@ -140,7 +142,7 @@ bool parse_start_line(request *req, char line[REQUEST_LENGTH]) {
   return true;
 }
 
-//bool parse_header(request *req, char line[REQUEST_LENGTH]) {}
+// bool parse_header(request *req, char line[REQUEST_LENGTH]) {}
 
 void init_request(request *req) {
   req->protocol[0] = '\0';
