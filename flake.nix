@@ -32,7 +32,7 @@
           src = ./src;
           buildInputs = with pkgs; [ ];
           buildPhase = ''
-            clang main.c -o server
+            clang main.c -o server -Wall -Werror
           '';
           installPhase = ''
             mkdir -p $out/bin
