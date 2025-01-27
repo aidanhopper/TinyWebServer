@@ -14,7 +14,7 @@
 #include <unistd.h>
 
 #define REQUEST_LENGTH 1024
-#define REQUEST_MEMBER_LENGTH 128
+#define REQUEST_MEMBER_LENGTH 256
 #define WEB_ROOT "testsite"
 
 typedef enum filetype {
@@ -29,6 +29,8 @@ typedef enum filetype {
 typedef struct request_headers_t {
   char connection[REQUEST_MEMBER_LENGTH];
   char host[REQUEST_MEMBER_LENGTH];
+  char user_agent[REQUEST_MEMBER_LENGTH];
+  char accept[REQUEST_MEMBER_LENGTH];
 } request_headers;
 
 typedef struct response_headers_t {
@@ -47,6 +49,9 @@ typedef struct request {
 } request_t;
 
 typedef struct response {
+  uint8_t *response;
+  uint64_t capacity;
+  uint64_t length;
 } response_t;
 
 static const char *FILETYPE_MAPPING[] = {"text/html",       "text/css",

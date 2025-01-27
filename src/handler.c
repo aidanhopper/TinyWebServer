@@ -145,11 +145,30 @@ uint8_t *handle_response(request_t *req, uint64_t *response_length) {
   return response;
 }
 
+bool parse_header(request_t *req, char buffer[REQUEST_LENGTH]) {
+  char *rest = buffer;
+  const char *del = " ";
+
+  char *header;
+  char *value;
+
+  header = strtok_r(rest, del, &rest);
+  if (header[strnlen(header, REQUEST_LENGTH) - 1] != ':')
+    return false;
+
+  value = header + strnlen(header, REQUEST_LENGTH) + 1;
+  header[strnlen(header, REQUEST_LENGTH) - 1] = '\0';
+  printf("Header is %s\nValue is %s\n\n", header, value);
+
+  return true;
+}
+
 bool parse(request_t *req, char buffer[REQUEST_LENGTH]) {
   char *rest_of_buffer = buffer;
   char *line;
   uint32_t line_number = 0;
   bool success;
+  bool in_headers = true;
 
   for (line = strtok_r(rest_of_buffer, "\r\n", &rest_of_buffer); line != NULL;
        line = strtok_r(NULL, "\r\n", &rest_of_buffer)) {
@@ -159,9 +178,18 @@ bool parse(request_t *req, char buffer[REQUEST_LENGTH]) {
       success = parse_start_line(req, line);
       if (!success)
         return false;
+    } else if (in_headers) {
+      // parse a header
+      parse_header(req, line);
     }
 
-    // Parse the headers
+    // End of headers if true
+    if (strnlen(line, REQUEST_LENGTH) == 0) {
+      in_headers = false;
+      printf("NO MORE HEADERS\n");
+    } else if (!in_headers) {
+      // parse the body of the request
+    }
 
     line_number++;
   }

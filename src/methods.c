@@ -3,8 +3,6 @@
 
 const char endl[] = "\r\n";
 
-uint8_t *file_not_found(request_t *req, uint64_t *response_length);
-
 uint8_t *init_response(int capacity) {
   uint8_t *response = calloc(sizeof(uint8_t), capacity);
   return response;
@@ -51,7 +49,7 @@ uint8_t *normal_response(request_t *req, uint64_t *response_length) {
   return response;
 }
 
-uint8_t *file_not_found(request_t *req, uint64_t *response_length) {
+uint8_t *not_found(request_t *req, uint64_t *response_length) {
   uint64_t capacity = 100;
   uint8_t *response = init_response(capacity);
 
@@ -93,6 +91,6 @@ uint8_t *not_implemented(request_t *req) {
 
 uint8_t *get(request_t *req, uint64_t *response_length) {
   if (!file_exists(req->path))
-    return file_not_found(req, response_length);
+    return not_found(req, response_length);
   return normal_response(req, response_length);
 }
