@@ -1,7 +1,7 @@
 #include "headers.h"
 #include <stdint.h>
 
-uint8_t *grab_file(char *path, uint64_t *length) {
+uint8_t *grab_file(const char *path, uint64_t *length) {
   FILE *f = fopen(path, "rb");
 
   if (f == NULL) {
@@ -22,11 +22,6 @@ uint8_t *grab_file(char *path, uint64_t *length) {
   }
 
   fread(buffer, sizeof(uint8_t), *length, f);
-  /*if (bytes_read != *length) {*/
-  /*  free(buffer);*/
-  /*  fclose(f);*/
-  /*  return NULL;*/
-  /*}*/
 
   fclose(f);
   return buffer;

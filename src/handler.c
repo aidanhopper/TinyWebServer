@@ -2,45 +2,28 @@
 
 #include "methods.c"
 
-bool parse(request_t *req, char buffer[REQUEST_LENGTH]);
+bool parse(request_t *req, uint8_t buffer[REQUEST_LENGTH]);
 bool parse_start_line(request_t *req, char buffer[REQUEST_LENGTH]);
-uint8_t *handle_response(request_t *req, uint64_t *response_length);
+uint8_t *handle_response(server_t *server, uint8_t buffer[REQUEST_LENGTH],
+                         uint64_t *response_length);
 void init_request(request_t *req);
 
 // Thinking of adding the connecting IP to the arguments
-void handle_connection(int32_t connection, char *web_root) {
-  char buffer[REQUEST_LENGTH];
+void handle_connection(server_t *server, int32_t connection) {
+  uint8_t buffer[REQUEST_LENGTH];
   uint32_t bytes;
-  bool success;
 
   while (true) {
     memset(buffer, 0, REQUEST_LENGTH);
 
-    bytes = recv(connection, buffer, REQUEST_LENGTH, 0);
+    bytes = recv(connection, buffer, REQUEST_LENGTH - 1, 0);
     if (!bytes)
       return;
 
-    request_t req;
-    init_request(&req);
-    strcpy(req.web_root, web_root);
-
     printf("%s\n", buffer);
 
-    success = parse(&req, buffer);
-    if (!success)
-      return;
-
     uint64_t response_length = 0;
-    uint8_t *response = handle_response(&req, &response_length);
-
-    /*memset(msg, '\0', 1024);*/
-    /*char content[] = "<h1>THIS IS A HEADER</h1> \*/
-    /*                  <p>this is a paragraph</p>";*/
-    /*sprintf(msg,*/
-    /*        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: "*/
-    /*        "%d\r\n\r\n%s",*/
-    /*        (int32_t)strlen(content), content);*/
-    /*strcat(msg, content);*/
+    uint8_t *response = handle_response(server, buffer, &response_length);
 
     if (response != NULL) {
       printf("%s\n", response);
@@ -96,52 +79,47 @@ filetype_t get_filetype(char *extension) {
   return NOT_SUPPORTED;
 }
 
-uint8_t *handle_response(request_t *req, uint64_t *response_length) {
+uint8_t *handle_response(server_t *server, uint8_t buffer[REQUEST_LENGTH],
+                         uint64_t *response_length) {
+  request_t req;
+  init_request(&req);
+
+  // Populate request structure
+  if (!parse(&req, buffer))
+    return NULL;
+
+  strcpy(req.web_root, server->web_root);
+  get_path(req.path, req.request_target, req.web_root);
+  get_file_extension(req.extension, req.request_target);
+  req.filetype = get_filetype(req.extension);
+
+  // Do some validation
+  if (strcmp(req.protocol, "HTTP/1.1") != 0)
+    return NULL;
+
+  // Handle building the response on the request method
   uint8_t *response = NULL;
-  get_path(req->path, req->request_target, req->web_root);
-  get_file_extension(req->extension, req->request_target);
-  req->filetype = get_filetype(req->extension);
 
-  if (strcmp(req->method, "GET") == 0) {
-    response = get(req, response_length);
-  }
-
-  else if (strcmp(req->method, "POST") == 0) {
-    response = not_implemented(req);
-  }
-
-  else if (strcmp(req->method, "PUT") == 0) {
-    response = not_implemented(req);
-  }
-
-  else if (strcmp(req->method, "DELETE") == 0) {
-    response = not_implemented(req);
-  }
-
-  else if (strcmp(req->method, "PATCH") == 0) {
-    response = not_implemented(req);
-  }
-
-  else if (strcmp(req->method, "CONNECT") == 0) {
-    response = not_implemented(req);
-  }
-
-  else if (strcmp(req->method, "TRACE") == 0) {
-    response = not_implemented(req);
-  }
-
-  else if (strcmp(req->method, "OPTIONS") == 0) {
-    response = not_implemented(req);
-  }
-
-  else if (strcmp(req->method, "TRACE") == 0) {
-    response = not_implemented(req);
-  }
-
-  else if (strcmp(req->method, "HEAD") == 0) {
-    response = not_implemented(req);
-  }
-
+  if (strcmp(req.method, "GET") == 0)
+    response = get(&req, response_length);
+  else if (strcmp(req.method, "POST") == 0)
+    response = not_implemented(&req);
+  else if (strcmp(req.method, "PUT") == 0)
+    response = not_implemented(&req);
+  else if (strcmp(req.method, "DELETE") == 0)
+    response = not_implemented(&req);
+  else if (strcmp(req.method, "PATCH") == 0)
+    response = not_implemented(&req);
+  else if (strcmp(req.method, "CONNECT") == 0)
+    response = not_implemented(&req);
+  else if (strcmp(req.method, "TRACE") == 0)
+    response = not_implemented(&req);
+  else if (strcmp(req.method, "OPTIONS") == 0)
+    response = not_implemented(&req);
+  else if (strcmp(req.method, "TRACE") == 0)
+    response = not_implemented(&req);
+  else if (strcmp(req.method, "HEAD") == 0)
+    response = not_implemented(&req);
   return response;
 }
 
@@ -149,44 +127,38 @@ bool parse_header(request_t *req, char buffer[REQUEST_LENGTH]) {
   char *rest = buffer;
   const char *del = " ";
 
-  char *header;
-  char *value;
-
-  header = strtok_r(rest, del, &rest);
+  char *header = strtok_r(rest, del, &rest);
   if (header[strnlen(header, REQUEST_LENGTH) - 1] != ':')
     return false;
 
-  value = header + strnlen(header, REQUEST_LENGTH) + 1;
+  // char *value = header + strnlen(header, REQUEST_LENGTH) + 1;
   header[strnlen(header, REQUEST_LENGTH) - 1] = '\0';
-  printf("Header is %s\nValue is %s\n\n", header, value);
+
+  // printf("Header is %s\nValue is %s\n\n", header, value);
 
   return true;
 }
 
-bool parse(request_t *req, char buffer[REQUEST_LENGTH]) {
-  char *rest_of_buffer = buffer;
+bool parse(request_t *req, uint8_t buffer[REQUEST_LENGTH]) {
+  char *rest_of_buffer = (char *)buffer;
   char *line;
+  const char del[] = "\r\n";
   uint32_t line_number = 0;
-  bool success;
   bool in_headers = true;
 
-  for (line = strtok_r(rest_of_buffer, "\r\n", &rest_of_buffer); line != NULL;
-       line = strtok_r(NULL, "\r\n", &rest_of_buffer)) {
+  for (line = strtok_r(rest_of_buffer, del, &rest_of_buffer); line != NULL;
+       line = strtok_r(NULL, del, &rest_of_buffer)) {
 
     // Parses the start-line
-    if (line_number == 0) {
-      success = parse_start_line(req, line);
-      if (!success)
-        return false;
-    } else if (in_headers) {
-      // parse a header
+    if (line_number == 0 && !parse_start_line(req, line))
+      return false;
+    else if (in_headers)
       parse_header(req, line);
-    }
 
     // End of headers if true
     if (strnlen(line, REQUEST_LENGTH) == 0) {
       in_headers = false;
-      printf("NO MORE HEADERS\n");
+      // printf("NO MORE HEADERS\n");
     } else if (!in_headers) {
       // parse the body of the request
     }
@@ -200,26 +172,25 @@ bool parse(request_t *req, char buffer[REQUEST_LENGTH]) {
 bool parse_start_line(request_t *req, char line[REQUEST_LENGTH]) {
   char *rest = line;
   char *token;
+  const char del[] = " ";
 
-  token = strtok_r(rest, " ", &rest);
+  token = strtok_r(rest, del, &rest);
   if (token == NULL)
     return false;
   strncat(req->method, token, REQUEST_MEMBER_LENGTH);
 
-  token = strtok_r(NULL, " ", &rest);
+  token = strtok_r(NULL, del, &rest);
   if (token == NULL)
     return false;
   strncat(req->request_target, token, REQUEST_MEMBER_LENGTH);
 
-  token = strtok_r(NULL, " ", &rest);
+  token = strtok_r(NULL, del, &rest);
   if (token == NULL)
     return false;
   strncat(req->protocol, token, REQUEST_MEMBER_LENGTH);
 
   return true;
 }
-
-// bool parse_header(request *req, char line[REQUEST_LENGTH]) {}
 
 void init_request(request_t *req) {
   req->protocol[0] = '\0';

@@ -24,7 +24,8 @@ int32_t main(int32_t argc, char *argv[]) {
   struct sockaddr_storage their_addr;
   socklen_t addr_size = sizeof their_addr;
 
-  char *web_root = argv[1];
+  server_t server;
+  strncpy(server.web_root, argv[1], SERVER_MEMBER_LENGTH);
 
   // Connection loop
   while (1) {
@@ -36,7 +37,7 @@ int32_t main(int32_t argc, char *argv[]) {
       // Not needed in child process
       close(s);
 
-      handle_connection(connection, web_root);
+      handle_connection(&server, connection);
 
       // Clean up
       close(connection);
