@@ -2,10 +2,10 @@
 
 #include "methods.c"
 
-bool parse(request *req, char buffer[REQUEST_LENGTH]);
-bool parse_start_line(request *req, char buffer[REQUEST_LENGTH]);
-uint8_t *handle_response(request *req, uint64_t *response_length);
-void init_request(request *req);
+bool parse(request_t *req, char buffer[REQUEST_LENGTH]);
+bool parse_start_line(request_t *req, char buffer[REQUEST_LENGTH]);
+uint8_t *handle_response(request_t *req, uint64_t *response_length);
+void init_request(request_t *req);
 
 // Thinking of adding the connecting IP to the arguments
 void handle_connection(int32_t connection, char *web_root) {
@@ -14,13 +14,13 @@ void handle_connection(int32_t connection, char *web_root) {
   bool success;
 
   while (true) {
-    memset(buffer, '\0', REQUEST_LENGTH);
+    memset(buffer, 0, REQUEST_LENGTH);
 
     bytes = recv(connection, buffer, REQUEST_LENGTH, 0);
     if (!bytes)
       return;
 
-    request req;
+    request_t req;
     init_request(&req);
     strcpy(req.web_root, web_root);
 
@@ -50,8 +50,57 @@ void handle_connection(int32_t connection, char *web_root) {
   }
 }
 
-uint8_t *handle_response(request *req, uint64_t *response_length) {
+void get_path(char *path, char *request_target, char *root) {
+  int32_t dot_index = -1;
+  for (int i = 0; i < strlen(request_target); i++)
+    if (request_target[i] == '.') {
+      dot_index = i;
+      break;
+    }
+
+  if (strcmp(request_target, "/") == 0) {
+    sprintf(path, "%s/index.html", root);
+  } else if (dot_index == -1) {
+    sprintf(path, "%s/%s.html", root, request_target);
+  } else {
+    sprintf(path, "%s/%s", root, request_target);
+  }
+}
+
+void get_file_extension(char *extension, char *request_target) {
+  int32_t dot_index = -1;
+  for (int i = 0; i < strlen(request_target); i++)
+    if (request_target[i] == '.') {
+      dot_index = i;
+      break;
+    }
+
+  if (dot_index != -1) {
+    strcpy(extension, request_target + dot_index + 1);
+  } else {
+    strcpy(extension, "html");
+  }
+}
+
+filetype_t get_filetype(char *extension) {
+  if (strcmp(extension, "html") == 0)
+    return HTML;
+  else if (strcmp(extension, "css") == 0)
+    return CSS;
+  else if (strcmp(extension, "js") == 0)
+    return JS;
+  else if (strcmp(extension, "png") == 0)
+    return PNG;
+  else if (strcmp(extension, "pdf") == 0)
+    return PDF;
+  return NOT_SUPPORTED;
+}
+
+uint8_t *handle_response(request_t *req, uint64_t *response_length) {
   uint8_t *response = NULL;
+  get_path(req->path, req->request_target, req->web_root);
+  get_file_extension(req->extension, req->request_target);
+  req->filetype = get_filetype(req->extension);
 
   if (strcmp(req->method, "GET") == 0) {
     response = get(req, response_length);
@@ -96,7 +145,7 @@ uint8_t *handle_response(request *req, uint64_t *response_length) {
   return response;
 }
 
-bool parse(request *req, char buffer[REQUEST_LENGTH]) {
+bool parse(request_t *req, char buffer[REQUEST_LENGTH]) {
   char *rest_of_buffer = buffer;
   char *line;
   uint32_t line_number = 0;
@@ -120,31 +169,31 @@ bool parse(request *req, char buffer[REQUEST_LENGTH]) {
   return true;
 }
 
-bool parse_start_line(request *req, char line[REQUEST_LENGTH]) {
+bool parse_start_line(request_t *req, char line[REQUEST_LENGTH]) {
   char *rest = line;
   char *token;
 
   token = strtok_r(rest, " ", &rest);
   if (token == NULL)
     return false;
-  strncat(req->method, token, REQUEST_LENGTH);
+  strncat(req->method, token, REQUEST_MEMBER_LENGTH);
 
   token = strtok_r(NULL, " ", &rest);
   if (token == NULL)
     return false;
-  strncat(req->request_target, token, REQUEST_LENGTH);
+  strncat(req->request_target, token, REQUEST_MEMBER_LENGTH);
 
   token = strtok_r(NULL, " ", &rest);
   if (token == NULL)
     return false;
-  strncat(req->protocol, token, REQUEST_LENGTH);
+  strncat(req->protocol, token, REQUEST_MEMBER_LENGTH);
 
   return true;
 }
 
 // bool parse_header(request *req, char line[REQUEST_LENGTH]) {}
 
-void init_request(request *req) {
+void init_request(request_t *req) {
   req->protocol[0] = '\0';
   req->method[0] = '\0';
   req->request_target[0] = '\0';
