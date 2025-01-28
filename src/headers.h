@@ -32,6 +32,8 @@ static const char *FILETYPE_MAPPING[] = {"text/html",       "text/css",
                                          "text/js",         "image/png",
                                          "application/pdf", "text/plain"};
 
+typedef enum route_type_t { DIRECTORY, DEFINED } route_type_t;
+
 typedef struct headers_t {
   char connection[HEADER_MEMBER_LENGTH];
   char host[HEADER_MEMBER_LENGTH];
@@ -48,7 +50,6 @@ typedef struct request_t {
   char web_root[REQUEST_MEMBER_LENGTH];
   char path[REQUEST_MEMBER_LENGTH];
   char extension[REQUEST_MEMBER_LENGTH];
-  filetype_t filetype;
   headers_t headers;
 } request_t;
 
@@ -59,6 +60,10 @@ typedef struct response_t {
   uint64_t content_length;
   headers_t headers;
 } response_t;
+
+typedef struct route_t {
+  char path[SERVER_MEMBER_LENGTH];
+} route_t;
 
 typedef struct server_t {
   char web_root[SERVER_MEMBER_LENGTH];

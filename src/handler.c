@@ -50,35 +50,6 @@ void get_path(char *path, char *request_target, char *root) {
   }
 }
 
-void get_file_extension(char *extension, char *request_target) {
-  int32_t dot_index = -1;
-  for (int i = 0; i < strlen(request_target); i++)
-    if (request_target[i] == '.') {
-      dot_index = i;
-      break;
-    }
-
-  if (dot_index != -1) {
-    strcpy(extension, request_target + dot_index + 1);
-  } else {
-    strcpy(extension, "html");
-  }
-}
-
-filetype_t get_filetype(char *extension) {
-  if (strcmp(extension, "html") == 0)
-    return HTML;
-  else if (strcmp(extension, "css") == 0)
-    return CSS;
-  else if (strcmp(extension, "js") == 0)
-    return JS;
-  else if (strcmp(extension, "png") == 0)
-    return PNG;
-  else if (strcmp(extension, "pdf") == 0)
-    return PDF;
-  return NOT_SUPPORTED;
-}
-
 uint8_t *handle_response(server_t *server, uint8_t buffer[REQUEST_LENGTH],
                          uint64_t *response_length) {
   request_t req;
@@ -91,7 +62,6 @@ uint8_t *handle_response(server_t *server, uint8_t buffer[REQUEST_LENGTH],
   strcpy(req.web_root, server->web_root);
   get_path(req.path, req.request_target, req.web_root);
   get_file_extension(req.extension, req.request_target);
-  req.filetype = get_filetype(req.extension);
 
   // Do some validation
   if (strcmp(req.protocol, "HTTP/1.1") != 0)
@@ -103,23 +73,21 @@ uint8_t *handle_response(server_t *server, uint8_t buffer[REQUEST_LENGTH],
   if (strcmp(req.method, "GET") == 0)
     response = get(&req, response_length);
   else if (strcmp(req.method, "POST") == 0)
-    response = not_implemented(&req);
-  else if (strcmp(req.method, "PUT") == 0)
-    response = not_implemented(&req);
+    response = not_implemented(&req, response_length);
   else if (strcmp(req.method, "DELETE") == 0)
-    response = not_implemented(&req);
+    response = not_implemented(&req, response_length);
   else if (strcmp(req.method, "PATCH") == 0)
-    response = not_implemented(&req);
+    response = not_implemented(&req, response_length);
   else if (strcmp(req.method, "CONNECT") == 0)
-    response = not_implemented(&req);
+    response = not_implemented(&req, response_length);
   else if (strcmp(req.method, "TRACE") == 0)
-    response = not_implemented(&req);
+    response = not_implemented(&req, response_length);
   else if (strcmp(req.method, "OPTIONS") == 0)
-    response = not_implemented(&req);
+    response = not_implemented(&req, response_length);
   else if (strcmp(req.method, "TRACE") == 0)
-    response = not_implemented(&req);
+    response = not_implemented(&req, response_length);
   else if (strcmp(req.method, "HEAD") == 0)
-    response = not_implemented(&req);
+    response = not_implemented(&req, response_length);
   return response;
 }
 

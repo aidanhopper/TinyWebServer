@@ -3,6 +3,35 @@
 
 const char endl[] = "\r\n";
 
+void get_file_extension(char *extension, const char *request_target) {
+  int32_t dot_index = -1;
+  for (int i = 0; i < strlen(request_target); i++)
+    if (request_target[i] == '.') {
+      dot_index = i;
+      break;
+    }
+
+  if (dot_index != -1) {
+    strcpy(extension, request_target + dot_index + 1);
+  } else {
+    strcpy(extension, "html");
+  }
+}
+
+filetype_t get_filetype(char *extension) {
+  if (strcmp(extension, "html") == 0)
+    return HTML;
+  else if (strcmp(extension, "css") == 0)
+    return CSS;
+  else if (strcmp(extension, "js") == 0)
+    return JS;
+  else if (strcmp(extension, "png") == 0)
+    return PNG;
+  else if (strcmp(extension, "pdf") == 0)
+    return PDF;
+  return NOT_SUPPORTED;
+}
+
 bool file_exists(const char *path) {
   FILE *file;
   if ((file = fopen(path, "r"))) {
@@ -35,6 +64,15 @@ void set_status_code(response_t *res, const uint16_t status_code) {
 void set_content(response_t *res, const char *path) {
   res->content_length = 0;
   res->content = grab_file(path, &res->content_length);
+
+  char extension[100];
+  get_file_extension(extension, path);
+
+  char content_length_str[100];
+  snprintf(content_length_str, 100, "%llu", res->content_length);
+
+  set_header(res, "Content-Type", FILETYPE_MAPPING[get_filetype(extension)]);
+  set_header(res, "Content-Length", content_length_str);
 }
 
 char *map_status_code(uint16_t s, char buf[RESPONSE_MEMBER_LENGTH]) {
@@ -77,14 +115,6 @@ uint8_t *construct_response(response_t *res, uint64_t *response_length) {
           strlen(header));
     }
 
-  if (res->content_length != 0) {
-    char content_length_header[HEADER_MEMBER_LENGTH];
-    snprintf(content_length_header, HEADER_MEMBER_LENGTH,
-             "Content-Length: %llu\r\n", res->content_length);
-    add(&response, &capacity, response_length, (uint8_t *)content_length_header,
-        strlen(content_length_header));
-  }
-
   add(&response, &capacity, response_length, (uint8_t *)endl, strlen(endl));
   add(&response, &capacity, response_length, res->content, res->content_length);
 
@@ -95,49 +125,33 @@ void init_response_t(response_t *res) {
   memset(&res->headers, 0, sizeof(headers_t));
 }
 
-uint8_t *normal_response(request_t *req, uint64_t *response_length) {
+uint8_t *not_implemented(request_t *req, uint64_t *response_length) {
   response_t res;
   init_response_t(&res);
 
-  set_status_code(&res, 200);
-  set_content(&res, req->path);
   set_protocol(&res, "HTTP/1.1");
-  set_header(&res, "Content-Type", FILETYPE_MAPPING[req->filetype]);
+  set_status_code(&res, 501);
+  set_header(&res, "Content-Length", "0");
+  set_header(&res, "Connection", "close");
 
   return construct_response(&res, response_length);
-}
-
-uint8_t *not_found(request_t *req, uint64_t *response_length) {
-  response_t res;
-  init_response_t(&res);
-
-  char error_path[100];
-  sprintf(error_path, "%s/%s", req->web_root, "404.html");
-
-  set_status_code(&res, 404);
-  set_content(&res, error_path);
-  set_protocol(&res, "HTTP/1.1");
-  set_header(&res, "Content-Type", FILETYPE_MAPPING[req->filetype]);
-
-  return construct_response(&res, response_length);
-}
-
-uint8_t *not_implemented(request_t *req) {
-  uint64_t capacity = 100;
-  uint8_t *response = init_response(capacity);
-  uint64_t response_length = 0;
-
-  const char start_line[] = "HTTP/1.1 501 Not Implemented\r\n";
-
-  add(&response, &capacity, &response_length, (uint8_t *)start_line,
-      strlen(start_line));
-  add(&response, &capacity, &response_length, (uint8_t *)endl, strlen(endl));
-
-  return response;
 }
 
 uint8_t *get(request_t *req, uint64_t *response_length) {
-  if (!file_exists(req->path))
-    return not_found(req, response_length);
-  return normal_response(req, response_length);
+  response_t res;
+  init_response_t(&res);
+
+  set_protocol(&res, "HTTP/1.1");
+
+  if (!file_exists(req->path)) {
+    char error_path[100];
+    sprintf(error_path, "%s/%s", req->web_root, "404.html");
+    set_content(&res, error_path);
+    set_status_code(&res, 404);
+  } else {
+    set_content(&res, req->path);
+    set_status_code(&res, 200);
+  }
+
+  return construct_response(&res, response_length);
 }
