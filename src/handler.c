@@ -80,13 +80,10 @@ void set_content_to_file(response_t *res, const char *path) {
   set_header(res, "Content-Length", content_length_str);
 }
 
-void set_content(response_t *res, request_t *req, server_t *server) {
+void set_content(response_t *res, request_t *req) {
   if (file_exists(req->path)) {
     set_content_to_file(res, req->path);
     set_status_code(res, 200);
-  } else {
-    set_content_to_file(res, server->not_found_path);
-    set_status_code(res, 404);
   }
 }
 
@@ -131,7 +128,7 @@ void get_path(char *path, char *request_target, char *root) {
   }
 }
 
-bool parse_request(request_t *req, server_t *server, uint8_t *buffer) {
+bool parse_request(request_t *req, routes_t *routes, uint8_t *buffer) {
   req->protocol[0] = '\0';
   req->request_target[0] = '\0';
   req->headers.host[0] = '\0';
@@ -141,21 +138,20 @@ bool parse_request(request_t *req, server_t *server, uint8_t *buffer) {
   if (!parse(req, buffer))
     return false;
 
-  strcpy(req->web_root, server->web_root);
-  get_path(req->path, req->request_target, req->web_root);
+  get_path(req->path, req->request_target, "testsite");
   get_file_extension(req->extension, req->request_target);
 
   return true;
 }
 
-void create_response(response_t *res, request_t *req, server_t *server) {
+void create_response(response_t *res, request_t *req, routes_t *routes) {
   init_response_t(res);
 
   switch (req->method) {
   case GET:
     set_protocol(res, "HTTP/1.1");
     set_status_code(res, 200);
-    set_content(res, req, server);
+    set_content(res, req);
     set_header(res, "Connection", "keep-alive");
     break;
   case POST:
@@ -206,7 +202,7 @@ void free_response(response_t *res) {
 }
 
 // Thinking of adding the connecting IP to the arguments
-void handle_connection(server_t *server, int32_t connection) {
+void handle_connection(routes_t *routes, int32_t connection) {
   uint8_t buffer[REQUEST_LENGTH];
   uint32_t bytes;
 
@@ -218,13 +214,13 @@ void handle_connection(server_t *server, int32_t connection) {
       return;
 
     request_t req;
-    if (!parse_request(&req, server, buffer)) // invalid request
+    if (!parse_request(&req, routes, buffer)) // invalid request
       return;
 
     printf("%s\n", buffer);
 
     response_t res;
-    create_response(&res, &req, server);
+    create_response(&res, &req, routes);
 
     uint64_t response_buf_length = 0;
     uint8_t *response_buf = response_to_buf(&res, &response_buf_length);

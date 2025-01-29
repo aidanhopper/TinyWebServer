@@ -40,6 +40,11 @@ typedef enum method_t {
   HEAD,
 } method_t;
 
+typedef enum method_response_type_t {
+  FILE_SERVER,
+  MANUAL,
+} method_response_type_t;
+
 static const char *FILETYPE_MAPPING[] = {"text/html",       "text/css",
                                          "text/js",         "image/png",
                                          "application/pdf", "text/plain"};
@@ -73,19 +78,17 @@ typedef struct response_t {
   headers_t headers;
 } response_t;
 
+typedef void (*route_handler)(const request_t *req, response_t *res);
+
 typedef struct route_t {
   char path[SERVER_MEMBER_LENGTH];
-  method_t method;
+  route_handler handler;
 } route_t;
 
 typedef struct routes_t {
-  route_t **get_routes;
-  uint64_t get_routes_len;
+  route_t **route_list;
+  uint64_t route_list_length;
+  uint64_t route_list_capacity;
 } routes_t;
-
-typedef struct server_t {
-  char web_root[SERVER_MEMBER_LENGTH];
-  char not_found_path[SERVER_MEMBER_LENGTH];
-} server_t;
 
 #endif

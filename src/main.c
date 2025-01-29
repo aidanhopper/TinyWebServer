@@ -6,12 +6,47 @@ int32_t open_listen_socket();
 const int32_t BACKLOG = 5;
 const char *PORT = "80";
 
-int32_t main(int32_t argc, char *argv[]) {
-  if (argc == 1) {
-    fprintf(stderr, "A web root must be specified\n");
-    return 1;
+void init_routes(routes_t *routes) {
+  routes->route_list_length = 0;
+  routes->route_list_capacity = 1;
+  routes->route_list = calloc(routes->route_list_capacity, sizeof(route_t *));
+}
+
+void create_route(routes_t *routes, const char *path, route_handler handler) {
+  route_t *route = calloc(1, sizeof(route_t));
+  strncat(route->path, path, SERVER_MEMBER_LENGTH);
+  route->handler = handler;
+
+  if (routes->route_list_capacity <= routes->route_list_length) {
+    routes->route_list =
+        realloc(routes->route_list, routes->route_list_capacity * 2);
+    routes->route_list_capacity *= 2;
   }
 
+  routes->route_list[routes->route_list_length++] = route;
+}
+
+void route1(const request_t *req, response_t *res) {
+  printf("HELLO WORLD !\n"); //
+}
+
+void handle_route(routes_t *routes, const request_t *req, response_t *res) {
+  // grab the path
+  const char *path = req->path;
+
+  // break it into tokens
+  // ex: /thing/box  -->  / - thing - box  -->  3 tokens
+  // find the best match within the routes
+
+  // search througth the routes list
+  for (int i = 0; i < routes->route_list_length; i++) {
+    const route_t *route = routes->route_list[i];
+    const char *route_path = route->path;
+
+  }
+}
+
+int32_t main(int32_t argc, char *argv[]) {
   printf("Starting server on port %s\n", PORT);
 
   // Open a socket to listen for connections
@@ -24,9 +59,14 @@ int32_t main(int32_t argc, char *argv[]) {
   struct sockaddr_storage their_addr;
   socklen_t addr_size = sizeof their_addr;
 
-  server_t server;
-  strncpy(server.web_root, argv[1], SERVER_MEMBER_LENGTH);
-  sprintf(server.not_found_path, "%s/404.html", server.web_root);
+  routes_t routes;
+  init_routes(&routes);
+
+  create_route(&routes, "/", route1);
+  create_route(&routes, "/asdf", route1);
+
+  response_t res;
+  request_t req;
 
   // Connection loop
   while (1) {
@@ -38,7 +78,7 @@ int32_t main(int32_t argc, char *argv[]) {
       // Not needed in child process
       close(s);
 
-      handle_connection(&server, connection);
+      handle_connection(&routes, connection);
 
       // Clean up
       close(connection);
