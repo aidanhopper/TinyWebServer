@@ -19,6 +19,9 @@
 #define RESPONSE_MEMBER_LENGTH 256
 #define HEADER_MEMBER_LENGTH 256
 
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
 typedef enum filetype_t {
   HTML = 0,
   CSS,
@@ -86,7 +89,7 @@ typedef struct route_t {
 } route_t;
 
 typedef struct routes_t {
-  route_t **route_list;
+  route_t *route_list;
   uint64_t route_list_length;
   uint64_t route_list_capacity;
 } routes_t;
