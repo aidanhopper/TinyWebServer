@@ -28,6 +28,18 @@ typedef enum filetype_t {
   NOT_SUPPORTED,
 } filetype_t;
 
+typedef enum method_t {
+  GET = 0,
+  POST,
+  PUT,
+  DELETE,
+  PATCH,
+  CONNECT,
+  TRACE,
+  OPTIONS,
+  HEAD,
+} method_t;
+
 static const char *FILETYPE_MAPPING[] = {"text/html",       "text/css",
                                          "text/js",         "image/png",
                                          "application/pdf", "text/plain"};
@@ -44,7 +56,7 @@ typedef struct headers_t {
 } headers_t;
 
 typedef struct request_t {
-  char method[REQUEST_MEMBER_LENGTH];
+  method_t method;
   char request_target[REQUEST_MEMBER_LENGTH];
   char protocol[REQUEST_MEMBER_LENGTH];
   char web_root[REQUEST_MEMBER_LENGTH];
@@ -63,10 +75,17 @@ typedef struct response_t {
 
 typedef struct route_t {
   char path[SERVER_MEMBER_LENGTH];
+  method_t method;
 } route_t;
+
+typedef struct routes_t {
+  route_t **get_routes;
+  uint64_t get_routes_len;
+} routes_t;
 
 typedef struct server_t {
   char web_root[SERVER_MEMBER_LENGTH];
+  char not_found_path[SERVER_MEMBER_LENGTH];
 } server_t;
 
 #endif

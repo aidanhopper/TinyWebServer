@@ -26,6 +26,7 @@ int32_t main(int32_t argc, char *argv[]) {
 
   server_t server;
   strncpy(server.web_root, argv[1], SERVER_MEMBER_LENGTH);
+  sprintf(server.not_found_path, "%s/404.html", server.web_root);
 
   // Connection loop
   while (1) {
