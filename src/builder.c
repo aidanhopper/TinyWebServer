@@ -1,5 +1,4 @@
 #include "headers.h"
-#include <stdint.h>
 
 uint8_t *grab_file(const char *path, uint64_t *length) {
   FILE *f = fopen(path, "rb");

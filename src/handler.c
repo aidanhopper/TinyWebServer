@@ -1,12 +1,30 @@
 #include "headers.h"
 
 #include "builder.c"
+#include "routes.c"
 
 const char endl[] = "\r\n";
 
 bool parse(request_t *req, uint8_t buffer[REQUEST_LENGTH]);
 bool parse_start_line(request_t *req, char buffer[REQUEST_LENGTH]);
 void init_request(request_t *req);
+
+void get_path(char *path, const char *request_target, const char *root) {
+  int32_t dot_index = -1;
+  for (int i = 0; i < strlen(request_target); i++)
+    if (request_target[i] == '.') {
+      dot_index = i;
+      break;
+    }
+
+  if (strcmp(request_target, "/") == 0) {
+    sprintf(path, "%s/index.html", root);
+  } else if (dot_index == -1) {
+    sprintf(path, "%s/%s.html", root, request_target);
+  } else {
+    sprintf(path, "%s/%s", root, request_target);
+  }
+}
 
 void get_file_extension(char *extension, const char *request_target) {
   int32_t dot_index = -1;
@@ -80,11 +98,29 @@ void set_content_to_file(response_t *res, const char *path) {
   set_header(res, "Content-Length", content_length_str);
 }
 
-void set_content(response_t *res, request_t *req) {
-  if (file_exists(req->path)) {
-    set_content_to_file(res, req->path);
+bool serve_file(response_t *res, const request_t *req, const char *root,
+                const char *request_target) {
+  char path[REQUEST_LENGTH];
+  get_path(path, request_target, root);
+  if (file_exists(path)) {
     set_status_code(res, 200);
+    set_content_to_file(res, path);
+    return true;
+  } else {
+    set_status_code(res, 404);
   }
+  return false;
+}
+
+void set_content(response_t *res, const char *content) {
+  res->content_length = strlen(content);
+  char content_length_str[100];
+  sprintf(content_length_str, "%llu", res->content_length);
+
+  set_header(res, "Content-Length", content_length_str);
+
+  res->content = malloc(sizeof(char) * res->content_length);
+  memcpy(res->content, content, res->content_length);
 }
 
 char *map_status_code(uint16_t s, char buf[RESPONSE_MEMBER_LENGTH]) {
@@ -111,23 +147,6 @@ void init_response_t(response_t *res) {
   memset(&res->headers, 0, sizeof(headers_t));
 }
 
-void get_path(char *path, char *request_target, char *root) {
-  int32_t dot_index = -1;
-  for (int i = 0; i < strlen(request_target); i++)
-    if (request_target[i] == '.') {
-      dot_index = i;
-      break;
-    }
-
-  if (strcmp(request_target, "/") == 0) {
-    sprintf(path, "%s/index.html", root);
-  } else if (dot_index == -1) {
-    sprintf(path, "%s/%s.html", root, request_target);
-  } else {
-    sprintf(path, "%s/%s", root, request_target);
-  }
-}
-
 bool parse_request(request_t *req, routes_t *routes, uint8_t *buffer) {
   req->protocol[0] = '\0';
   req->request_target[0] = '\0';
@@ -138,35 +157,9 @@ bool parse_request(request_t *req, routes_t *routes, uint8_t *buffer) {
   if (!parse(req, buffer))
     return false;
 
-  get_path(req->path, req->request_target, "testsite");
   get_file_extension(req->extension, req->request_target);
 
   return true;
-}
-
-void create_response(response_t *res, request_t *req, routes_t *routes) {
-  init_response_t(res);
-
-  switch (req->method) {
-  case GET:
-    set_protocol(res, "HTTP/1.1");
-    set_status_code(res, 200);
-    set_content(res, req);
-    set_header(res, "Connection", "keep-alive");
-    break;
-  case POST:
-  case PUT:
-  case DELETE:
-  case PATCH:
-  case CONNECT:
-  case TRACE:
-  case OPTIONS:
-  case HEAD:
-    set_protocol(res, "HTTP/1.1");
-    set_status_code(res, 501);
-    set_header(res, "Content-Length", "0");
-    break;
-  }
 }
 
 uint8_t *response_to_buf(response_t *res, uint64_t *response_length) {
@@ -183,11 +176,12 @@ uint8_t *response_to_buf(response_t *res, uint64_t *response_length) {
 
   char *header = (char *)&res->headers;
   for (; header < (char *)&res->headers + sizeof(headers_t);
-       header += HEADER_MEMBER_LENGTH)
+       header += HEADER_MEMBER_LENGTH) {
     if (header[0] != '\0') {
       add(&response, &capacity, response_length, (uint8_t *)header,
           strlen(header));
     }
+  }
 
   add(&response, &capacity, response_length, (uint8_t *)endl, strlen(endl));
   add(&response, &capacity, response_length, res->content, res->content_length);
@@ -220,10 +214,13 @@ void handle_connection(routes_t *routes, int32_t connection) {
     printf("%s\n", buffer);
 
     response_t res;
-    create_response(&res, &req, routes);
+    init_response_t(&res);
+    serve_route(routes, &req, &res, req.request_target);
 
     uint64_t response_buf_length = 0;
     uint8_t *response_buf = response_to_buf(&res, &response_buf_length);
+
+    printf("\n%s\n", response_buf);
 
     free_response(&res);
 
@@ -270,7 +267,6 @@ bool parse(request_t *req, uint8_t buffer[REQUEST_LENGTH]) {
     // End of headers if true
     if (strnlen(line, REQUEST_LENGTH) == 0) {
       in_headers = false;
-      // printf("NO MORE HEADERS\n");
     } else if (!in_headers) {
       // parse the body of the request
     }
