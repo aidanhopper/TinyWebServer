@@ -50,7 +50,7 @@ char **tokenize_path(const char *path, uint32_t *tokens_length) {
         capacity *= 2;
       }
 
-      if (r == path_len - 1)
+      if (r == path_len - 1 && path[r] != '/')
         r++;
 
       tokens[*tokens_length] = malloc(sizeof(char) * (r - l));
@@ -114,10 +114,14 @@ void serve_route(const routes_t *routes, const request_t *req, response_t *res,
     free_tokens(route_path_tokens, route_path_tokens_length);
   }
 
+  char request_target[REQUEST_MEMBER_LENGTH] = "/";
+  for (uint32_t i = best_route_score; i < path_tokens_length; i++) {
+    if (i != best_route_score)
+      strcat(request_target, "/");
+    strcat(request_target, path_tokens[i]);
+  }
+
   free_tokens(path_tokens, path_tokens_length);
 
-  // TODO
-  // The input path needs to be modified to remove matched tokens from the best
-  // match route
-  best_route->handler(routes, req, res, path);
+  best_route->handler(routes, req, res, request_target);
 }

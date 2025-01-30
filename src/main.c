@@ -8,12 +8,9 @@ const char *PORT = "80";
 
 void route1(const routes_t *routes, const request_t *req, response_t *res,
             const char *request_target) {
-
-  printf("%s\n", request_target);
   set_protocol(res, "HTTP/1.1");
-  if (!serve_file(res, req, "testsite", request_target)) {
+  if (!serve_file(res, req, "testsite", request_target))
     serve_route(routes, req, res, "/404");
-  }
 }
 
 void route2(const routes_t *routes, const request_t *req, response_t *res,
@@ -37,7 +34,7 @@ int32_t main(int32_t argc, char *argv[]) {
   init_routes(&routes);
 
   create_route(&routes, "/", route1);
-  create_route(&routes, "/test/route", route1);
+  create_route(&routes, "/home", route1);
   create_route(&routes, "/asdf", route2);
   create_route(&routes, "/404", notfound);
 
